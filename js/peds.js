@@ -182,7 +182,7 @@ class Ped {
         if (stars >= 4 && chance(0.08)) this.fireCd = 1.2;
       }
     }
-    if (d < 24 && stars <= 2 && (!p.inCar || p.inCar.speed < 30)) busted();
+    if (d < 24 && stars <= 2 && !p.air && (!p.inCar || p.inCar.speed < 30)) busted();
   }
 }
 

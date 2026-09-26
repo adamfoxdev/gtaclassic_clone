@@ -23,6 +23,7 @@ const ROOF_COLORS = [[84, 84, 90], [98, 92, 86], [72, 78, 84], [112, 102, 92], [
 
 const World = {
   tiles: new Uint8Array(MW * MW),
+  heights: new Float32Array(MW * MW), // building height per tile (0 = open ground)
   buildings: [], trees: [], spots: [], barrelSpots: [], walkTiles: [], lotLines: new Set(),
   chunks: new Map(), minimap: null, hospital: null, station: null,
 
@@ -31,6 +32,10 @@ const World = {
   at(x, y) { return this.tile(Math.floor(x / T), Math.floor(y / T)); },
   solid(x, y) { return isSolidT(this.at(x, y)); },
   solidTile(tx, ty) { return isSolidT(this.tile(tx, ty)); },
+  heightAt(x, y) {
+    const tx = Math.floor(x / T), ty = Math.floor(y / T);
+    return (tx < 0 || ty < 0 || tx >= MW || ty >= MW) ? 0 : this.heights[ty * MW + tx];
+  },
 
   gen(seed) {
     const R = mulberry32(seed);
@@ -82,6 +87,7 @@ const World = {
     const tree = (tx, ty, j = 12) => this.trees.push({ x: tx * T + 32 + rr(-j, j), y: ty * T + 32 + rr(-j, j), r: rr(16, 28), s: R() });
     const addB = (x, y, w, h, height) => {
       fill(x, y, w, h, TL.BUILDING);
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) this.heights[(y + j) * MW + x + i] = height;
       const feats = [];
       if (height > 220 && w >= 3 && h >= 3 && R() < 0.6) feats.push({ t: 'heli' });
       else {

@@ -2,7 +2,7 @@
 // Game state, input, player control, spawning, police/wanted system, camera, HUD and main loop.
 
 const G = {
-  cars: [], peds: [], proj: [], barrels: [], pickups: [], player: null,
+  cars: [], peds: [], proj: [], barrels: [], pickups: [], thermals: [], player: null,
   cam: { x: 0, y: 0, zoom: 1, shake: 0 },
   time: 0, heat: 0, lastSeen: -99, seen: false, seenT: 0, dispT: 0, money: 0, kills: 0,
   msgs: [], overT: 0, overKind: null, hurtFlash: 0, spawnT: 0,
@@ -22,13 +22,13 @@ function updateKeyAim(p) {
   let dx = 0, dy = 0;
   for (const k in NUMPAD_AIM) if (keys[k]) { dx += NUMPAD_AIM[k][0]; dy += NUMPAD_AIM[k][1]; }
   if (dx || dy) {
-    if (!keyAim.active) keyAim.ang = p.inCar ? p.inCar.angle : p.ang;
+    if (!keyAim.active) keyAim.ang = p.inCar ? p.inCar.angle : p.air ? p.air.head : p.ang;
     keyAim.active = true;
     keyAim.ang = Math.atan2(dy, dx);
   } else if (keys.Numpad0 && !keyAim.active) {
     // Firing with 0 before choosing a direction shoots the way you're facing / driving.
     keyAim.active = true;
-    keyAim.ang = p.inCar ? p.inCar.angle : p.ang;
+    keyAim.ang = p.inCar ? p.inCar.angle : p.air ? p.air.head : p.ang;
   }
 }
 
@@ -72,12 +72,14 @@ function playerHurt(amt, src) {
   if (p.hp <= 0) wasted(src);
 }
 
-function wasted() {
+function wasted(src) {
   const p = G.player;
   if (p.dead || G.overT > 0) return;
   p.dead = true; p.hp = 0;
+  const inAir = !!p.air;
+  p.air = null;
   if (p.inCar) { p.inCar.driver = null; p.inCar = null; }
-  else {
+  else if (!(src && src.kind === 'drown') && !inAir) {
     FX.bloodPool(p.x, p.y);
     FX.decal({ k: 'corpse', x: p.x, y: p.y, ang: rand(0, TAU), shirt: p.shirt, pants: p.pants, skin: p.skin, hair: p.hair, burnt: p.burnT > 0 });
   }
@@ -96,7 +98,7 @@ function busted() {
 function respawn() {
   const p = G.player, wasBusted = G.overKind === 'busted';
   const at = wasBusted ? World.station : World.hospital;
-  p.inCar = null; p.dead = false; p.hp = 100; p.armor = 0; p.burnT = 0;
+  p.inCar = null; p.air = null; p.dead = false; p.hp = 100; p.armor = 0; p.burnT = 0;
   p.weapons = { fist: Infinity, pistol: 24 }; p.weapon = 'pistol';
   p.x = at.x; p.y = at.y;
   const fee = Math.floor(G.money * (wasBusted ? 0.2 : 0.1));
@@ -119,6 +121,7 @@ function cycleWeapon(d) {
 
 function toggleCar() {
   const p = G.player;
+  if (p.air) return;
   if (p.inCar) {
     const car = p.inCar;
     const pos = exitPos(car, -1);
@@ -158,9 +161,17 @@ function updatePlayer(dt) {
   if (pressed.KeyQ || pressed.NumpadSubtract) cycleWeapon(-1);
   if (pressed.KeyE || pressed.NumpadAdd) cycleWeapon(1);
   if (pressed.KeyF || pressed.Enter || pressed.NumpadEnter) toggleCar();
+  if (pressed.KeyX || pressed.NumpadDecimal) {
+    if (p.inCar) ejectPlayer();
+    else if (p.air && p.air.mode === 'glide') cutGlider(p.air);
+  }
   updateKeyAim(p);
   const aim = keyAim.active ? keyAim.ang : Math.atan2(mouse.wy - p.y, mouse.wx - p.x);
-  if (p.inCar) {
+  if (p.air) {
+    updateAir(dt);
+    if (p.dead) return;
+    p.ang = aim;
+  } else if (p.inCar) {
     const car = p.inCar;
     car.input = {
       throttle: ((keys.KeyW || keys.ArrowUp) ? 1 : 0) - ((keys.KeyS || keys.ArrowDown) ? 1 : 0),
@@ -192,7 +203,7 @@ function updatePlayer(dt) {
   }
 
   for (const pk of G.pickups) {
-    if (pk.hidden || pk.gone) continue;
+    if (pk.hidden || pk.gone || (p.air && p.air.z > 40)) continue;
     if (dist(p.x, p.y, pk.x, pk.y) > (p.inCar ? 36 : 22)) continue;
     collect(pk);
   }
@@ -371,7 +382,7 @@ function updateHeat(dt) {
       for (const c of G.cars) if (c.driver === 'cop' && c.ai && c.ai.mode === 'chase') n++;
       if (n < want) spawnPolice();
     }
-    if (!p.inCar) {
+    if (!p.inCar && !p.air) {
       for (const c of G.cars) {
         if (c.driver === 'cop' && c.ai && c.ai.mode === 'chase' && c.ai.los && c.speed < 70 && dist(c.x, c.y, p.x, p.y) < 200) copsExit(c);
       }
@@ -384,6 +395,7 @@ function updateCamera(dt) {
   const p = G.player, c = G.cam;
   let tx = p.x, ty = p.y, zt = 1;
   if (p.inCar) { tx += p.inCar.vx * 0.45; ty += p.inCar.vy * 0.45; zt = clamp(1 - p.inCar.speed / 1300, 0.6, 1); }
+  else if (p.air) { tx += p.air.vx * 0.4; ty += p.air.vy * 0.4; zt = clamp(1 - p.air.z / 750, 0.5, 1); }
   const k = Math.min(1, dt * 4);
   c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;
   c.zoom += (zt - c.zoom) * Math.min(1, dt * 1.5);
@@ -418,6 +430,7 @@ function update(dt) {
 
   for (let i = 0; i < G.peds.length; i++) G.peds[i].update(dt);
   updateProjectiles(dt);
+  updateThermals(dt);
   updateBarrels(dt);
   updatePickups(dt);
   FX.update(dt);
@@ -455,13 +468,15 @@ function render() {
   FX.drawGround(ctx, v);
   drawPickups(ctx);
   drawBarrels(ctx);
-  for (const p of G.peds) if (!p.dead && !p.inCar && inView(p.x, p.y, 20)) drawPed(ctx, p);
+  for (const p of G.peds) if (!p.dead && !p.inCar && !p.air && inView(p.x, p.y, 20)) drawPed(ctx, p);
   for (const car of G.cars) if (inView(car.x, car.y, 60)) drawCar(ctx, car);
   drawProjectiles(ctx);
   FX.drawParticles(ctx, v);
+  drawAirShadow(ctx);
   World.drawTrees(ctx, c.x, c.y, v);
   World.drawBuildings(ctx, c.x, c.y, v);
   FX.drawHigh(ctx, v);
+  drawAirborne(ctx, c.x, c.y);
   FX.drawPopups(ctx);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -560,8 +575,9 @@ function drawHUD(ctx) {
   G.msgs.forEach((m, i) => { ctx.globalAlpha = clamp(m.t, 0, 1); outlinedText(ctx, m.text, pad, pad + (100 + i * 26) * u, m.col, 4 * u); });
   ctx.globalAlpha = 1;
 
-  // Vehicle info (bottom right)
-  if (p.inCar) {
+  // Vehicle / flight info (bottom right)
+  if (p.air) drawAirHUD(ctx, W, H, pad, u, font);
+  else if (p.inCar) {
     ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
     ctx.font = font(34);
     outlinedText(ctx, `${Math.round(Math.abs(p.inCar.fwdSpeed()) * 0.36)} km/h`, W - pad, H - pad - 22 * u, '#fff', 5 * u);
@@ -633,7 +649,7 @@ function drawMinimap(ctx, x, y, size) {
   const [hx, hy] = toM(World.hospital.x, World.hospital.y);
   ctx.fillStyle = '#fff'; ctx.fillRect(hx - 4, hy - 4, 8, 8); ctx.fillStyle = '#d22'; ctx.fillRect(hx - 1, hy - 3, 2, 6); ctx.fillRect(hx - 3, hy - 1, 6, 2);
   const [px, py] = toM(p.x, p.y);
-  const a = p.inCar ? p.inCar.angle : p.ang;
+  const a = p.inCar ? p.inCar.angle : p.air && p.air.mode === 'glide' ? p.air.head : p.ang;
   ctx.save(); ctx.translate(px, py); ctx.rotate(a);
   ctx.fillStyle = '#ffd23a'; ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(7, 0); ctx.lineTo(-5, -5); ctx.lineTo(-2, 0); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill(); ctx.stroke();

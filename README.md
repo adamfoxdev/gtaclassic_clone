@@ -20,6 +20,7 @@ npx http-server .   # or: python3 -m http.server
 | Numpad 0 | Shoot (hold for automatic fire) |
 | F / Enter / Numpad Enter | Get in or out of a car. Jacks the car if someone is driving |
 | Space | Handbrake / drift |
+| X / Numpad . | Eject from a car. A hang glider opens at the top of the jump: A/D turn, W dives for speed, S pulls up. Press again to cut the glider loose |
 | Shift | Sprint |
 | 1–7, Q/E, Numpad −/+, mouse wheel | Switch weapon |
 | H / M / P or Esc | Horn / mute / pause |
@@ -32,6 +33,7 @@ npx http-server .   # or: python3 -m http.server
 - **Pedestrians**: they walk sidewalks, cross roads, idle, flee from gunfire and explosions, and catch fire.
 - **Weapons**: fists, pistol, uzi, shotgun, flamethrower, rocket launcher and grenades, collected from crates around the city. Health and body-armor pickups are also scattered around.
 - **Explosions**: fireballs, shockwaves, debris and scorch marks. Explosive barrels and exploding cars set off chain reactions.
+- **Ejector seat and hang glider**: blast out of any car and glide over the city. Buildings have real heights: clip a wall and you bounce off, drop onto a roof and you skid across it. Fly too slowly and you stall. Explosions and burning cars create thermals that carry you up. Landing too fast hurts, and landing in the water is fatal. You can shoot and drop grenades from the air.
 - **Wanted level**: crimes add heat, from 1 to 5 stars. Police cars path through the streets to chase and ram you, and cops get out to arrest you or shoot. Break line of sight to lose them. You get **BUSTED** or **WASTED** and respawn with a fee.
 - **HUD**: money, wanted stars, weapon and ammo, health and armor, minimap, speedometer.
 
@@ -46,4 +48,5 @@ npx http-server .   # or: python3 -m http.server
 | `js/vehicles.js` | Car physics, collisions, traffic and police AI, car rendering |
 | `js/peds.js` | Pedestrian, cop and player bodies and AI |
 | `js/weapons.js` | Weapons, projectiles, explosions, barrels |
+| `js/glider.js` | Ejector seat, glider flight, thermals, landing |
 | `js/game.js` | Game state, input, spawning, wanted system, camera, HUD, main loop |
