@@ -16,10 +16,12 @@ npx http-server .   # or: python3 -m http.server
 | --- | --- |
 | WASD / Arrows | Walk, or drive (accelerate, brake/reverse, steer) |
 | Mouse | Aim and shoot (also from inside cars) |
-| F / Enter | Get in or out of a car. Jacks the car if someone is driving |
+| Numpad 1–9 (not 5) | Aim with the keyboard in 8 directions (8 = up, 9 = up-right, or press two together). Moving the mouse switches back to mouse aim |
+| Numpad 0 | Shoot (hold for automatic fire) |
+| F / Enter / Numpad Enter | Get in or out of a car. Jacks the car if someone is driving |
 | Space | Handbrake / drift |
 | Shift | Sprint |
-| 1–7, Q/E, mouse wheel | Switch weapon |
+| 1–7, Q/E, Numpad −/+, mouse wheel | Switch weapon |
 | H / M / P or Esc | Horn / mute / pause |
 
 ## Features

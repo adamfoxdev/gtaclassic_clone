@@ -14,6 +14,23 @@ const G = {
 
 const keys = {}, pressed = {};
 const mouse = { sx: 0, sy: 0, wx: 0, wy: 0, down: false };
+// Keyboard aiming on the number pad: direction keys point the gun, 0 fires.
+const keyAim = { active: false, ang: 0 };
+const NUMPAD_AIM = { Numpad1: [-1, 1], Numpad2: [0, 1], Numpad3: [1, 1], Numpad4: [-1, 0], Numpad6: [1, 0], Numpad7: [-1, -1], Numpad8: [0, -1], Numpad9: [1, -1] };
+
+function updateKeyAim(p) {
+  let dx = 0, dy = 0;
+  for (const k in NUMPAD_AIM) if (keys[k]) { dx += NUMPAD_AIM[k][0]; dy += NUMPAD_AIM[k][1]; }
+  if (dx || dy) {
+    if (!keyAim.active) keyAim.ang = p.inCar ? p.inCar.angle : p.ang;
+    keyAim.active = true;
+    keyAim.ang = Math.atan2(dy, dx);
+  } else if (keys.Numpad0 && !keyAim.active) {
+    // Firing with 0 before choosing a direction shoots the way you're facing / driving.
+    keyAim.active = true;
+    keyAim.ang = p.inCar ? p.inCar.angle : p.ang;
+  }
+}
 
 function inView(x, y, m = 0) { const v = G.view; return x > v.x0 - m && x < v.x1 + m && y > v.y0 - m && y < v.y1 + m; }
 
@@ -138,10 +155,11 @@ function updatePlayer(dt) {
   const p = G.player;
   if (p.dead || G.overT > 0) return;
   for (let i = 1; i <= 7; i++) if (pressed['Digit' + i]) { const wk = WEAPON_ORDER[i - 1]; if (p.weapons[wk] > 0) p.weapon = wk; }
-  if (pressed.KeyQ) cycleWeapon(-1);
-  if (pressed.KeyE) cycleWeapon(1);
-  if (pressed.KeyF || pressed.Enter) toggleCar();
-  const aim = Math.atan2(mouse.wy - p.y, mouse.wx - p.x);
+  if (pressed.KeyQ || pressed.NumpadSubtract) cycleWeapon(-1);
+  if (pressed.KeyE || pressed.NumpadAdd) cycleWeapon(1);
+  if (pressed.KeyF || pressed.Enter || pressed.NumpadEnter) toggleCar();
+  updateKeyAim(p);
+  const aim = keyAim.active ? keyAim.ang : Math.atan2(mouse.wy - p.y, mouse.wx - p.x);
   if (p.inCar) {
     const car = p.inCar;
     car.input = {
@@ -163,7 +181,7 @@ function updatePlayer(dt) {
   if (p.inCar) { p.x = p.inCar.x; p.y = p.inCar.y; p.vx = p.inCar.vx; p.vy = p.inCar.vy; p.ang = aim; }
 
   p.fireCd -= dt;
-  if (mouse.down && p.fireCd <= 0 && p.weapons[p.weapon] > 0) {
+  if ((mouse.down || keys.Numpad0) && p.fireCd <= 0 && p.weapons[p.weapon] > 0) {
     const w = WEAPONS[p.weapon];
     fireWeapon(p, p.weapon, aim);
     p.fireCd = w.rate;
@@ -556,7 +574,14 @@ function drawHUD(ctx) {
 
   // Crosshair
   if (!p.dead && G.overT <= 0) {
-    const mx = mouse.sx * G.dpr, my = mouse.sy * G.dpr, r = 9 * u;
+    let mx = mouse.sx * G.dpr, my = mouse.sy * G.dpr;
+    if (keyAim.active) {
+      // Park the crosshair a fixed distance out along the keyboard aim direction.
+      const R = (p.inCar ? p.inCar.t.w / 2 + 110 : 110);
+      mx = G.W / 2 + (p.x + Math.cos(keyAim.ang) * R - G.cam.x) * G.S;
+      my = G.H / 2 + (p.y + Math.sin(keyAim.ang) * R - G.cam.y) * G.S;
+    }
+    const r = 9 * u;
     ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 4 * u;
     for (const col of ['rgba(0,0,0,0.7)', '#fff']) {
       ctx.strokeStyle = col; ctx.lineWidth = col === '#fff' ? 1.6 * u : 4 * u;
@@ -670,14 +695,16 @@ function setupInput() {
   addEventListener('keydown', e => {
     if (!keys[e.code]) pressed[e.code] = true;
     keys[e.code] = true;
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'].includes(e.code)) e.preventDefault();
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Tab'].includes(e.code) || e.code.startsWith('Numpad')) e.preventDefault();
+    // Start or resume from the keyboard too.
+    if (!G.running() && ['Enter', 'NumpadEnter', 'Numpad0'].includes(e.code)) { e.preventDefault(); document.getElementById('play').click(); for (const k in pressed) delete pressed[k]; return; }
     if (e.code === 'KeyM') Sfx.toggleMute();
     if ((e.code === 'KeyP' || e.code === 'Escape') && G.started) setPaused(!G.paused);
   });
   addEventListener('keyup', e => { keys[e.code] = false; });
   addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.down = false; if (G.started) setPaused(true); });
   const c = G.canvas;
-  c.addEventListener('mousemove', e => { mouse.sx = e.clientX; mouse.sy = e.clientY; });
+  c.addEventListener('mousemove', e => { mouse.sx = e.clientX; mouse.sy = e.clientY; keyAim.active = false; });
   c.addEventListener('mousedown', e => { if (e.button === 0) mouse.down = true; Sfx.init(); });
   addEventListener('mouseup', e => { if (e.button === 0) mouse.down = false; });
   c.addEventListener('contextmenu', e => e.preventDefault());
@@ -705,6 +732,7 @@ function start() {
     Sfx.init();
     G.started = true;
     setPaused(false);
+    for (const k in pressed) delete pressed[k];
   });
   let last = performance.now(), acc = 0;
   const step = 1 / 60;
