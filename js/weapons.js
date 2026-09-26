@@ -36,7 +36,7 @@ function fireWeapon(sh, wk, ang) {
     case 'melee': {
       const hx = sh.x + Math.cos(ang) * 14, hy = sh.y + Math.sin(ang) * 14;
       for (const p of G.peds) {
-        if (p === sh || p.dead || p.inCar) continue;
+        if (p === sh || p.dead || p.inCar || p.air) continue;
         if (dist(p.x, p.y, hx, hy) < w.range) {
           p.damage(w.dmg, { player: isP, x: sh.x, y: sh.y, kind: 'melee' });
           Sfx.punch(hx, hy);
@@ -135,7 +135,7 @@ function updateProjectiles(dt) {
       if (dead) break;
 
       for (const p of G.peds) {
-        if (p === b.owner || p.dead || p.inCar) continue;
+        if (p === b.owner || p.dead || p.inCar || (p.air && p.air.z > 260)) continue;
         if (b.team === 'cop' && p.type === 'cop') continue;
         const dx = p.x - b.x, dy = p.y - b.y;
         if (dx * dx + dy * dy > 100) continue;
@@ -202,7 +202,7 @@ function explode(x, y, byPlayer, power = 1, srcCar = null) {
   }
   const src = { player: byPlayer, x, y, kind: 'explosion' };
   for (const p of G.peds) {
-    if (p.dead || p.inCar) continue;
+    if (p.dead || p.inCar || (p.air && p.air.z > 90)) continue;
     const d = dist(x, y, p.x, p.y);
     if (d >= R * 0.9) continue;
     const f = 1 - d / (R * 0.9);
@@ -220,6 +220,9 @@ function explode(x, y, byPlayer, power = 1, srcCar = null) {
     if (d < R) { br.fuse = 0.1 + d / 900; br.byPlayer = byPlayer; }
   }
   alertPeds(x, y, 800, true);
+  // Hot air rising off the blast gives gliders lift.
+  G.thermals.push({ x, y, r: 240 * power, power: 280, life: 9 });
+  if (G.thermals.length > 16) G.thermals.shift();
   if (byPlayer) addHeat(0.15);
 }
 

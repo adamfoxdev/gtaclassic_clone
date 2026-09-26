@@ -32,6 +32,13 @@ const Sfx = {
     this.sirG = ctx.createGain(); this.sirG.gain.value = 0;
     this.sirO.connect(this.sirG); this.sirG.connect(this.master);
     this.sirO.start();
+
+    // Wind while flying.
+    this.windS = ctx.createBufferSource(); this.windS.buffer = this.noiseBuf; this.windS.loop = true;
+    this.windF = ctx.createBiquadFilter(); this.windF.type = 'bandpass'; this.windF.frequency.value = 500; this.windF.Q.value = 0.7;
+    this.windG = ctx.createGain(); this.windG.gain.value = 0;
+    this.windS.connect(this.windF); this.windF.connect(this.windG); this.windG.connect(this.master);
+    this.windS.start();
   },
 
   toggleMute() {
@@ -132,6 +139,11 @@ const Sfx = {
   door(x, y) { this.tone({ freq: 140, freqEnd: 80, dur: 0.1, type: 'square', gain: 0.12, x, y }); },
   bust() { [523, 392, 330, 262].forEach((f, i) => this.tone({ freq: f, dur: 0.3, type: 'square', gain: 0.12, delay: i * 0.22 })); },
   wasted() { this.tone({ freq: 300, freqEnd: 60, dur: 1.6, type: 'sawtooth', gain: 0.2 }); },
+  eject(x, y) {
+    this.noise({ dur: 0.7, type: 'bandpass', freq: 300, freqEnd: 3000, q: 0.8, gain: 0.8, x, y });
+    this.tone({ freq: 180, freqEnd: 900, dur: 0.35, type: 'square', gain: 0.15, x, y });
+  },
+  glider() { this.noise({ dur: 0.3, type: 'lowpass', freq: 500, freqEnd: 150, gain: 0.5, attack: 0.02 }); },
   star() { this.tone({ freq: 880, freqEnd: 660, dur: 0.25, type: 'square', gain: 0.08 }); },
 
   update() {
@@ -156,5 +168,10 @@ const Sfx = {
     }
     this.sirO.frequency.setTargetAtTime(Math.sin(G.time * 3.2) > 0 ? 960 : 720, t, 0.02);
     this.sirG.gain.setTargetAtTime(sg, t, 0.1);
+
+    const a = p && p.air;
+    const wg = a && G.running() ? (a.mode === 'glide' ? 0.03 + a.speed / 9000 : 0.08) : 0;
+    this.windF.frequency.setTargetAtTime(a ? 300 + (a.mode === 'glide' ? a.speed : 400) : 500, t, 0.2);
+    this.windG.gain.setTargetAtTime(wg, t, 0.15);
   },
 };

@@ -253,7 +253,7 @@ function carPedCollisions() {
     const t = car.t, hw = t.w / 2, hh = t.h / 2, reach = hw + 12;
     const sp = car.speed;
     for (const p of G.peds) {
-      if (p.dead || p.inCar) continue;
+      if (p.dead || p.inCar || p.air) continue;
       if (Math.abs(p.x - car.x) > reach || Math.abs(p.y - car.y) > reach) continue;
       const [lx, ly] = car.toLocal(p.x, p.y);
       const ox = hw + p.r - Math.abs(lx), oy = hh + p.r - Math.abs(ly);
@@ -365,7 +365,7 @@ function obstacleAhead(car, vf) {
     if (gap < look - hw && (best === null || gap < best)) best = gap;
   }
   for (const p of G.peds) {
-    if (p.dead || p.inCar) continue;
+    if (p.dead || p.inCar || p.air) continue;
     const dx = p.x - car.x, dy = p.y - car.y;
     if (Math.abs(dx) > look || Math.abs(dy) > look) continue;
     const al = dx * c + dy * s;
