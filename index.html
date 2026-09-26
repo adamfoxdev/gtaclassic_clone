@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mayhem City</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #111; overflow: hidden; font-family: "Trebuchet MS", Arial, sans-serif; user-select: none; }
+  canvas { display: block; width: 100vw; height: 100vh; cursor: none; }
+  #overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 2;
+    background: radial-gradient(ellipse at center, rgba(30, 14, 40, 0.72), rgba(0, 0, 0, 0.9)); color: #eee; }
+  .panel { max-width: 660px; padding: 24px 32px; text-align: center; }
+  h1 { font-size: clamp(40px, 9vw, 72px); margin: 0 0 4px; letter-spacing: 4px; color: #ffcc33; font-style: italic;
+    text-shadow: 3px 3px 0 #b3261e, 6px 6px 0 #000; }
+  #tagline { color: #bbb; margin-bottom: 20px; letter-spacing: 1px; }
+  table { margin: 0 auto 22px; border-collapse: collapse; text-align: left; font-size: 15px; }
+  td { padding: 3px 10px; vertical-align: top; }
+  td:first-child { color: #ffcc33; text-align: right; font-weight: bold; white-space: nowrap; }
+  button { font: inherit; font-size: 22px; font-weight: bold; padding: 12px 40px; border: 0; border-radius: 6px; background: #ffcc33;
+    color: #000; cursor: pointer; box-shadow: 4px 4px 0 #b3261e; }
+  button:hover { background: #ffe066; }
+  .hint { margin-top: 16px; color: #888; font-size: 13px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="overlay">
+  <div class="panel">
+    <h1>MAYHEM CITY</h1>
+    <div id="tagline">A top-down open-world crime sandbox</div>
+    <table>
+      <tr><td>WASD / Arrows</td><td>Walk &mdash; or drive (accelerate, brake/reverse, steer)</td></tr>
+      <tr><td>Mouse</td><td>Aim &amp; shoot (works from inside cars too)</td></tr>
+      <tr><td>F / Enter</td><td>Get in / out of a car (or jack one)</td></tr>
+      <tr><td>Space</td><td>Handbrake &mdash; drift!</td></tr>
+      <tr><td>Shift</td><td>Sprint</td></tr>
+      <tr><td>1&ndash;7 / Q / E / Wheel</td><td>Switch weapon</td></tr>
+      <tr><td>H &middot; M &middot; P</td><td>Horn &middot; Mute &middot; Pause</td></tr>
+    </table>
+    <button id="play">PLAY</button>
+    <div class="hint">Grab weapon crates (P U S F R G), blow up cars and red barrels, and try to shake the cops.</div>
+  </div>
+</div>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/world.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/vehicles.js"></script>
+<script src="js/peds.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
